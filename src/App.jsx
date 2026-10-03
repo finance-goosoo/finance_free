@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { loadState, saveState, requestPersist, uid, hashColor, PALETTE, DEFAULT_SETTINGS, isStandalone } from "./store";
-import { Onboarding, Settings, InstallGuide } from "./Setup";
+import { loadState, saveState, requestPersist, uid, hashColor, PALETTE, DEFAULT_SETTINGS } from "./store";
+import { Onboarding, Settings } from "./Setup";
 
 // 카테고리 색 (App 렌더 시 사용자 설정으로 갱신됨)
 let COLORS = {};
@@ -195,7 +195,6 @@ export default function App() {
   const [lastBackup, setLastBackup] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [saveError, setSaveError] = useState(false);
-  const [hideInstall, setHideInstall] = useState(false);
   const [assets, setAssets] = useState([]);
   const [assetItems, setAssetItems] = useState([]); // asset_items: { name, grp: savings|invest|debt, hidden }
   const [showHidden, setShowHidden] = useState(false);
@@ -787,13 +786,6 @@ export default function App() {
           {saveError && (
             <div style={{ ...card, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 12, color: "#991b1b", lineHeight: 1.6 }}>
               ⚠️ 저장에 실패했어요. 브라우저의 개인정보 보호(시크릿) 모드에서는 저장이 안 될 수 있어요.
-            </div>
-          )}
-          {!isStandalone() && !hideInstall && (
-            <div style={{ ...card, background: "#f5f3ff", position: "relative" }}>
-              <button onClick={() => setHideInstall(true)} style={{ position: "absolute", top: 8, right: 10, border: "none", background: "none", color: "#a78bfa", fontSize: 14, cursor: "pointer" }}>✕</button>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#6d28d9", marginBottom: 6 }}>📱 홈 화면에 추가해서 앱처럼 쓰세요</div>
-              <InstallGuide compact />
             </div>
           )}
           {needBackup && (

@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { normalize, isIOS, isStandalone, DEFAULT_SETTINGS, DEFAULT_ASSET_ITEMS, emptyState } from "./store";
+import { normalize, DEFAULT_SETTINGS, DEFAULT_ASSET_ITEMS, emptyState } from "./store";
 
 // ── 공통 스타일 ──
 const page = {
@@ -99,51 +99,12 @@ export function ItemEditor({ items, onChange, color = "#0f172a", placeholder = "
 }
 
 // ═══════════════════════════════════════════
-// 홈 화면 설치 안내
-// ═══════════════════════════════════════════
-export function InstallGuide({ compact }) {
-  const ios = isIOS();
-  const installed = isStandalone();
-  if (installed) {
-    return <div style={{ fontSize: 13, color: "#059669", fontWeight: 600 }}>✓ 홈 화면에 설치된 앱으로 사용 중이에요</div>;
-  }
-  return (
-    <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.7 }}>
-      {!compact && (
-        <div style={{ marginBottom: 8 }}>
-          홈 화면에 추가하면 앱처럼 쓸 수 있고, {ios ? "아이폰에서는 데이터도 더 안전하게 보관돼요." : "더 빠르게 열 수 있어요."}
-        </div>
-      )}
-      {ios ? (
-        <div>
-          <b>아이폰:</b> Safari 하단의 <b>공유 버튼(□↑)</b> → <b>홈 화면에 추가</b>
-          <div style={{ fontSize: 11, color: "#94a3b8" }}>카카오톡 등 앱 안에서 열었다면 먼저 Safari로 열어주세요.</div>
-        </div>
-      ) : (
-        <div>
-          <b>안드로이드:</b> Chrome 오른쪽 위 <b>⋮ 메뉴</b> → <b>홈 화면에 추가</b> (또는 앱 설치)
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════
 // 백업 내보내기 / 불러오기
 // ═══════════════════════════════════════════
 async function exportBackup(state) {
   const json = JSON.stringify({ ...state, exportedAt: new Date().toISOString() }, null, 2);
   const fileName = "가계부백업_" + todayStr() + ".json";
   const blob = new Blob([json], { type: "application/json" });
-  try {
-    const file = new File([blob], fileName, { type: "application/json" });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: fileName });
-      return true;
-    }
-  } catch (e) {
-    if (e && e.name === "AbortError") return false; // 사용자가 공유 취소
-  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = fileName;
@@ -241,9 +202,12 @@ export function Onboarding({ onDone, onRestore }) {
           수입·지출을 내 방식대로 나눠 기록하고, 한 해 흐름과 자산 변화를 한눈에 볼 수 있어요.
         </div>
         <div style={{ ...cardSt, marginTop: 24, background: "#f1f5f9", boxShadow: "none" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>🔒 데이터는 이 기기에만 저장돼요</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>🔒 데이터는 이 컴퓨터에만 저장돼요</div>
           <div style={{ fontSize: 12, color: "#64748b", marginTop: 6, lineHeight: 1.6 }}>
-            서버로 전송되지 않아서 나만 볼 수 있어요. 대신 폰을 바꾸거나 브라우저 데이터를 지우면 사라지니, 설정에서 가끔 백업 파일을 만들어 두세요.
+            서버로 전송되지 않아서 나만 볼 수 있어요. 대신 다른 기기나 다른 브라우저와는 연동되지 않으니, <b>한 컴퓨터의 한 브라우저에서만</b> 써주세요.
+          </div>
+          <div style={{ fontSize: 12, color: "#64748b", marginTop: 8, lineHeight: 1.6 }}>
+            💻 <b>크롬 또는 엣지 브라우저</b>를 권장해요. (Safari는 한동안 접속하지 않으면 데이터를 지울 수 있어요)
           </div>
         </div>
         <div style={{ flex: 1 }} />
@@ -300,8 +264,13 @@ export function Onboarding({ onDone, onRestore }) {
 
       {step === 5 && (
         <>
-          {header("준비 끝! 🎉", "마지막으로 홈 화면에 추가해두면 앱처럼 편하게 쓸 수 있어요.")}
-          <div style={cardSt}><InstallGuide /></div>
+          {header("준비 끝! 🎉", "이제 바로 가계부를 쓸 수 있어요.")}
+          <div style={cardSt}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>⭐ 즐겨찾기에 추가해두세요</div>
+            <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.6 }}>
+              윈도우는 <b>Ctrl + D</b>, 맥은 <b>Cmd + D</b>를 누르면 이 주소를 바로 저장할 수 있어요. 다음에도 꼭 같은 브라우저에서 열어주세요.
+            </div>
+          </div>
           <div style={{ ...cardSt, background: "#fffbeb", boxShadow: "none" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>📦 백업 잊지 마세요</div>
             <div style={{ fontSize: 12, color: "#a16207", marginTop: 4, lineHeight: 1.6 }}>
@@ -483,13 +452,8 @@ export function Settings({ state, onChange, onClose }) {
             </RestoreButton>
           </div>
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8, lineHeight: 1.5 }}>
-            백업 파일은 카카오톡 나에게 보내기, 메일, 파일 앱 등에 저장해두세요. 폰을 바꿀 때 새 폰에서 '불러오기'로 옮길 수 있어요.
+            백업 파일은 다운로드 폴더에 저장돼요. 메일이나 클라우드 드라이브에도 한 부 보관해두면 안전해요. 컴퓨터를 바꿀 때는 새 컴퓨터에서 '불러오기'로 옮길 수 있어요.
           </div>
-        </div>
-
-        <div style={cardSt}>
-          <div style={label}>홈 화면에 설치</div>
-          <InstallGuide compact />
         </div>
 
         <div style={cardSt}>
@@ -499,7 +463,7 @@ export function Settings({ state, onChange, onClose }) {
         </div>
 
         <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", lineHeight: 1.6, padding: "8px 12px" }}>
-          모든 데이터는 이 기기의 브라우저에만 저장되며<br />어떤 서버로도 전송되지 않아요.
+          모든 데이터는 이 컴퓨터의 브라우저에만 저장되며<br />어떤 서버로도 전송되지 않아요.
         </div>
       </div>
     </div>
