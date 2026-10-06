@@ -116,5 +116,6 @@ export function isStandalone() {
 
 export function isIOS() {
   const ua = navigator.userAgent || "";
-  return /iPhone|iPad|iPod/.test(ua) || (ua.includes("Mac") && "ontouchend" in document);
+  // 아이패드는 맥처럼 보이므로 실제 터치 지점 수로 구분 (일반 맥은 0)
+  return /iPhone|iPad|iPod/.test(ua) || (ua.includes("Mac") && (navigator.maxTouchPoints || 0) > 1);
 }

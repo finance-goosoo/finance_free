@@ -1,5 +1,46 @@
 import { useState, useRef } from "react";
-import { normalize, DEFAULT_SETTINGS, DEFAULT_ASSET_ITEMS, emptyState } from "./store";
+import { normalize, DEFAULT_SETTINGS, DEFAULT_ASSET_ITEMS, emptyState, isIOS, isStandalone } from "./store";
+
+// 휴대폰/태블릿 여부 (터치 + 좁은 화면 또는 모바일 UA)
+function isMobile() {
+  try {
+    const ua = navigator.userAgent || "";
+    return isIOS() || /Android|Mobile/i.test(ua);
+  } catch (e) { return false; }
+}
+
+// ── 기기 안내 박스 (첫 화면·설정 화면 공용) ──
+export function DeviceNotice({ compact }) {
+  const ios = isIOS();
+  const installed = isStandalone();
+  const mobile = isMobile();
+  return (
+    <div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>🔒 처음 설정한 기기 한 대에서만 쓸 수 있어요</div>
+      <div style={{ fontSize: 12, color: "#64748b", marginTop: 6, lineHeight: 1.6 }}>
+        데이터는 서버로 전송되지 않고 <b>이 기기에만</b> 저장돼서 나만 볼 수 있어요. 대신 다른 기기·다른 사람과 <b>연동되지 않아요.</b>
+        {!compact && " PC와 폰을 오가며 쓰거나, 부부가 각자 폰으로 함께 보는 건 안 돼요."}
+      </div>
+      {ios && !installed && (
+        <div style={{ fontSize: 12, color: "#92400e", background: "#fffbeb", borderRadius: 8, padding: "9px 11px", marginTop: 10, lineHeight: 1.6 }}>
+          📱 <b>아이폰은 먼저 홈 화면에 추가해주세요.</b><br />
+          Safari 하단 <b>공유 버튼(□↑) → 홈 화면에 추가</b> 후, 홈 화면의 아이콘으로 열어서 시작하세요.
+          <span style={{ display: "block", fontSize: 11, color: "#a16207", marginTop: 3 }}>
+            Safari에서 바로 쓰면 7일 동안 접속하지 않을 때 데이터가 지워질 수 있고, 홈 화면 앱과 데이터가 따로 저장돼요.
+          </span>
+        </div>
+      )}
+      {ios && installed && (
+        <div style={{ fontSize: 12, color: "#059669", fontWeight: 600, marginTop: 8 }}>✓ 홈 화면 앱으로 실행 중이에요</div>
+      )}
+      {!ios && (
+        <div style={{ fontSize: 12, color: "#64748b", marginTop: 8, lineHeight: 1.6 }}>
+          {mobile ? "📱 안드로이드는 크롬 브라우저를 권장해요." : "💻 PC는 크롬 또는 엣지 브라우저를 권장해요. (Safari는 한동안 접속하지 않으면 데이터를 지울 수 있어요)"}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── 공통 스타일 ──
 const page = {
@@ -105,6 +146,17 @@ async function exportBackup(state) {
   const json = JSON.stringify({ ...state, exportedAt: new Date().toISOString() }, null, 2);
   const fileName = "가계부백업_" + todayStr() + ".json";
   const blob = new Blob([json], { type: "application/json" });
+  if (isMobile()) {
+    try {
+      const file = new File([blob], fileName, { type: "application/json" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: fileName });
+        return true;
+      }
+    } catch (e) {
+      if (e && e.name === "AbortError") return false; // 사용자가 공유 취소
+    }
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = fileName;
@@ -202,16 +254,16 @@ export function Onboarding({ onDone, onRestore }) {
           수입·지출을 내 방식대로 나눠 기록하고, 한 해 흐름과 자산 변화를 한눈에 볼 수 있어요.
         </div>
         <div style={{ ...cardSt, marginTop: 24, background: "#f1f5f9", boxShadow: "none" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>🔒 데이터는 이 컴퓨터에만 저장돼요</div>
-          <div style={{ fontSize: 12, color: "#64748b", marginTop: 6, lineHeight: 1.6 }}>
-            서버로 전송되지 않아서 나만 볼 수 있어요. 대신 다른 기기나 다른 브라우저와는 연동되지 않으니, <b>한 컴퓨터의 한 브라우저에서만</b> 써주세요.
-          </div>
-          <div style={{ fontSize: 12, color: "#64748b", marginTop: 8, lineHeight: 1.6 }}>
-            💻 <b>크롬 또는 엣지 브라우저</b>를 권장해요. (Safari는 한동안 접속하지 않으면 데이터를 지울 수 있어요)
-          </div>
+          <DeviceNotice />
         </div>
         <div style={{ flex: 1 }} />
-        <button onClick={() => setStep(1)} style={primaryBtn}>시작하기</button>
+        <button
+          onClick={() => {
+            if (isIOS() && !isStandalone() && !window.confirm("아직 홈 화면에 추가한 앱이 아니에요.\n\n여기서 시작하면 나중에 홈 화면 앱에서는 이 데이터가 보이지 않고, 오래 접속하지 않으면 지워질 수 있어요.\n\n그래도 Safari에서 시작할까요?")) return;
+            setStep(1);
+          }}
+          style={primaryBtn}
+        >시작하기</button>
         <RestoreButton onRestore={onRestore} style={{ ...primaryBtn, background: "none", color: "#64748b", fontSize: 13, fontWeight: 600, marginTop: 6 }}>
           백업 파일로 복원하기
         </RestoreButton>
@@ -266,10 +318,21 @@ export function Onboarding({ onDone, onRestore }) {
         <>
           {header("준비 끝! 🎉", "이제 바로 가계부를 쓸 수 있어요.")}
           <div style={cardSt}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>⭐ 즐겨찾기에 추가해두세요</div>
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.6 }}>
-              윈도우는 <b>Ctrl + D</b>, 맥은 <b>Cmd + D</b>를 누르면 이 주소를 바로 저장할 수 있어요. 다음에도 꼭 같은 브라우저에서 열어주세요.
-            </div>
+            {isMobile() ? (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>📱 다음에도 같은 곳에서 열어주세요</div>
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.6 }}>
+                  {isIOS() ? "홈 화면의 가계부 아이콘으로 열어야 지금 데이터가 보여요." : "지금 쓰는 브라우저(또는 홈 화면 아이콘)로 열어야 지금 데이터가 보여요."} 다른 폰이나 PC에서는 보이지 않아요.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>⭐ 즐겨찾기에 추가해두세요</div>
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.6 }}>
+                  윈도우는 <b>Ctrl + D</b>, 맥은 <b>Cmd + D</b>를 누르면 이 주소를 바로 저장할 수 있어요. 다음에도 꼭 이 컴퓨터, 같은 브라우저에서 열어주세요.
+                </div>
+              </>
+            )}
           </div>
           <div style={{ ...cardSt, background: "#fffbeb", boxShadow: "none" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>📦 백업 잊지 마세요</div>
@@ -452,8 +515,12 @@ export function Settings({ state, onChange, onClose }) {
             </RestoreButton>
           </div>
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8, lineHeight: 1.5 }}>
-            백업 파일은 다운로드 폴더에 저장돼요. 메일이나 클라우드 드라이브에도 한 부 보관해두면 안전해요. 컴퓨터를 바꿀 때는 새 컴퓨터에서 '불러오기'로 옮길 수 있어요.
+            PC는 다운로드 폴더에, 폰은 공유 창에서 고른 곳(파일 앱, 카카오톡 나에게 보내기 등)에 저장돼요. 메일이나 클라우드에도 한 부 보관해두면 안전해요. 기기를 바꿀 때는 새 기기에서 '불러오기'로 옮길 수 있어요.
           </div>
+        </div>
+
+        <div style={cardSt}>
+          <DeviceNotice compact />
         </div>
 
         <div style={cardSt}>
@@ -463,7 +530,7 @@ export function Settings({ state, onChange, onClose }) {
         </div>
 
         <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", lineHeight: 1.6, padding: "8px 12px" }}>
-          모든 데이터는 이 컴퓨터의 브라우저에만 저장되며<br />어떤 서버로도 전송되지 않아요.
+          모든 데이터는 처음 설정한 이 기기에만 저장되며<br />어떤 서버로도 전송되지 않아요.
         </div>
       </div>
     </div>
